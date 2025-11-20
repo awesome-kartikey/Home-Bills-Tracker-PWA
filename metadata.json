@@ -1,0 +1,5 @@
+{
+  "name": "Home Bills Tracker",
+  "description": "A comprehensive utility for tracking tenant bills, electricity usage, and milk consumption with AI-powered insights.",
+  "requestFramePermissions": []
+}
