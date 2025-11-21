@@ -3,6 +3,7 @@ import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { db, APP_ID } from '../services/firebase';
 import { MilkData } from '../types';
 import { ArrowLeft, ArrowRight, Plus } from 'lucide-react';
+import { MobileNumberPicker } from './MobileNumberPicker';
 
 interface MilkViewProps {
   userId: string;
@@ -14,32 +15,33 @@ export const MilkView: React.FC<MilkViewProps> = ({ userId }) => {
   const [milkRate, setMilkRate] = useState(60);
   const [addQty, setAddQty] = useState('');
   const [selectedDay, setSelectedDay] = useState(new Date().toISOString().split('T')[0]);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
 
   const monthStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
 
   useEffect(() => {
     if (!userId) return;
-    
+
     // --- DEMO MODE FALLBACK ---
     if (userId === 'local-demo-user') {
-        const storedSettings = localStorage.getItem('demo_settings');
-        if (storedSettings) setMilkRate(JSON.parse(storedSettings).milkRate || 60);
+      const storedSettings = localStorage.getItem('demo_settings');
+      if (storedSettings) setMilkRate(JSON.parse(storedSettings).milkRate || 60);
 
-        const storedMilk = localStorage.getItem(`demo_milk_${monthStr}`);
-        if (storedMilk) setMilkData(JSON.parse(storedMilk));
-        else setMilkData({});
-        return;
+      const storedMilk = localStorage.getItem(`demo_milk_${monthStr}`);
+      if (storedMilk) setMilkData(JSON.parse(storedMilk));
+      else setMilkData({});
+      return;
     }
     // --------------------------
-    
+
     // 1. Settings
     const unsubSettings = onSnapshot(doc(db, 'artifacts', APP_ID, 'users', userId, 'settings', 'global'), docSnap => {
-      if(docSnap.exists()) setMilkRate(docSnap.data().milkRate || 60);
+      if (docSnap.exists()) setMilkRate(docSnap.data().milkRate || 60);
     });
 
     // 2. Milk Month Doc
     const unsubMilk = onSnapshot(doc(db, 'artifacts', APP_ID, 'users', userId, 'milk', monthStr), docSnap => {
-      if(docSnap.exists()) {
+      if (docSnap.exists()) {
         setMilkData(docSnap.data().days || {});
       } else {
         setMilkData({});
@@ -62,25 +64,25 @@ export const MilkView: React.FC<MilkViewProps> = ({ userId }) => {
 
     // --- DEMO MODE FALLBACK ---
     if (userId === 'local-demo-user') {
-        setMilkData(newDays);
-        localStorage.setItem(`demo_milk_${monthStr}`, JSON.stringify(newDays));
-        setAddQty('');
-        return;
+      setMilkData(newDays);
+      localStorage.setItem(`demo_milk_${monthStr}`, JSON.stringify(newDays));
+      setAddQty('');
+      return;
     }
     // --------------------------
 
     await setDoc(doc(db, 'artifacts', APP_ID, 'users', userId, 'milk', monthStr), {
       days: newDays
     }, { merge: true });
-    
+
     setAddQty('');
   };
 
   const handleDeleteEntry = async (dateKey: string, index: number) => {
-    if(!window.confirm('Remove this entry?')) return;
+    if (!window.confirm('Remove this entry?')) return;
     const currentEntries = [...(milkData[dateKey] || [])];
     currentEntries.splice(index, 1);
-    
+
     const newDays = { ...milkData };
     if (currentEntries.length === 0) {
       delete newDays[dateKey];
@@ -90,9 +92,9 @@ export const MilkView: React.FC<MilkViewProps> = ({ userId }) => {
 
     // --- DEMO MODE FALLBACK ---
     if (userId === 'local-demo-user') {
-        setMilkData(newDays);
-        localStorage.setItem(`demo_milk_${monthStr}`, JSON.stringify(newDays));
-        return;
+      setMilkData(newDays);
+      localStorage.setItem(`demo_milk_${monthStr}`, JSON.stringify(newDays));
+      return;
     }
     // --------------------------
 
@@ -111,7 +113,7 @@ export const MilkView: React.FC<MilkViewProps> = ({ userId }) => {
     const dayTotal = (daily as number[]).reduce((sum: number, val: number) => sum + val, 0);
     return acc + dayTotal;
   }, 0);
-  
+
   const totalCost = totalLiters * milkRate;
 
   return (
@@ -141,24 +143,25 @@ export const MilkView: React.FC<MilkViewProps> = ({ userId }) => {
 
       {/* Add Entry Area */}
       <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex gap-3 items-center">
-        <input 
-          type="date" 
+        <input
+          type="date"
           value={selectedDay}
           onChange={e => setSelectedDay(e.target.value)}
           className="border border-gray-300 rounded-lg p-3 text-sm w-36 outline-none focus:ring-2 focus:ring-blue-500"
         />
         <div className="relative flex-1">
-            <input 
-            type="number" 
-            value={addQty}
-            onChange={e => setAddQty(e.target.value)}
-            placeholder="Qty"
-            className="w-full border border-gray-300 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 pl-3"
-            />
-             <span className="absolute right-3 top-3 text-gray-400 text-xs font-medium pointer-events-none">L</span>
+          <div
+            onClick={() => setIsPickerOpen(true)}
+            className="w-full border border-gray-300 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 pl-3 bg-white cursor-pointer flex items-center h-[46px]"
+          >
+            <span className={`text-base ${addQty ? 'text-gray-900 font-medium' : 'text-gray-400'}`}>
+              {addQty || 'Qty'}
+            </span>
+          </div>
+          <span className="absolute right-3 top-3 text-gray-400 text-xs font-medium pointer-events-none">L</span>
         </div>
-       
-        <button 
+
+        <button
           onClick={handleAddMilk}
           disabled={!addQty}
           className="bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 shadow-md transition-transform active:scale-95 disabled:bg-gray-300"
@@ -173,37 +176,43 @@ export const MilkView: React.FC<MilkViewProps> = ({ userId }) => {
           const entries = milkData[dateKey];
           const dayTotal = entries.reduce((a, b) => a + b, 0);
           const dateObj = new Date(dateKey);
-          
+
           return (
             <div key={dateKey} className="bg-white p-4 rounded-xl border border-gray-100 flex justify-between items-start shadow-sm">
               <div className="flex items-center gap-4">
-                 <div className="bg-indigo-50 text-indigo-700 p-3 rounded-lg font-bold text-sm w-12 text-center flex flex-col leading-none">
-                    <span className="text-lg">{dateObj.getDate()}</span>
-                    <span className="text-[10px] uppercase">{dateObj.toLocaleDateString('default', {weekday: 'short'})}</span>
-                 </div>
-                 <div>
-                   <div className="flex gap-2 flex-wrap">
-                     {entries.map((qty, idx) => (
-                       <button 
-                        key={idx} 
+                <div className="bg-indigo-50 text-indigo-700 p-3 rounded-lg font-bold text-sm w-12 text-center flex flex-col leading-none">
+                  <span className="text-lg">{dateObj.getDate()}</span>
+                  <span className="text-[10px] uppercase">{dateObj.toLocaleDateString('default', { weekday: 'short' })}</span>
+                </div>
+                <div>
+                  <div className="flex gap-2 flex-wrap">
+                    {entries.map((qty, idx) => (
+                      <button
+                        key={idx}
                         onClick={() => handleDeleteEntry(dateKey, idx)}
                         className="inline-flex items-center bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs font-medium hover:bg-red-100 hover:text-red-600 transition-colors"
                         title="Tap to delete"
-                       >
-                         {qty} L
-                       </button>
-                     ))}
-                   </div>
-                 </div>
+                      >
+                        {qty} L
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
               <div className="font-bold text-gray-900 text-lg">{dayTotal} <span className="text-xs text-gray-400 font-medium">L</span></div>
             </div>
           );
         })}
         {Object.keys(milkData).length === 0 && (
-            <div className="text-center text-gray-400 py-10">No entries for this month</div>
+          <div className="text-center text-gray-400 py-10">No entries for this month</div>
         )}
       </div>
+      <MobileNumberPicker
+        isOpen={isPickerOpen}
+        onClose={() => setIsPickerOpen(false)}
+        onSelect={(val) => setAddQty(val)}
+        initialValue={addQty}
+      />
     </div>
   );
 };
